@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Formation template"
+
+Parameters:
+  ResourcePrefix:
+    Description: prefix for all resources, can include lowercase letters (a-z), numbers (0-9), and dashes (-). must be unique within an aws region
+    Type: String
+
+Resources:
+  S3Bucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "${ResourcePrefix}-dist"
+      Tags:
+        - Key: !Ref ResourcePrefix
+          Value: ""
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "AES256"
+            BucketKeyEnabled: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: "BucketOwnerEnforced"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  IAMUser:
+    Type: "AWS::IAM::User"
+    Properties:
+      Path: "/"
+      UserName: !Sub "${ResourcePrefix}-user"
+      Tags:
+        - Key: !Ref ResourcePrefix
+          Value: "true"
+      ManagedPolicyArns:
+        - !Ref S3AccessPolicy
+
+  S3AccessPolicy:
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "${ResourcePrefix}-s3-access"
+      Path: "/"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "S3UploadAssets"
+            Effect: "Allow"
+            Action:
+              - "s3:*"
+            Resource:
+              - !Sub "arn:aws:s3:::${S3Bucket}"
+              - !Sub "arn:aws:s3:::${S3Bucket}/dist/*"
+
+  AccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      Status: Active
+      UserName: !Ref IAMUser
+
+  AccessKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub /${AWS::StackName}/credentials/${IAMUser}
+      SecretString: !Sub '{"AccessKeyId":"${AccessKey}","SecretAccessKey":"${AccessKey.SecretAccessKey}"}'
