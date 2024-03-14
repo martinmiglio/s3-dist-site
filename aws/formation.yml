@@ -55,7 +55,7 @@ Resources:
               - "s3:*"
             Resource:
               - !Sub "arn:aws:s3:::${S3Bucket}"
-              - !Sub "arn:aws:s3:::${S3Bucket}/dist/*"
+              - !Sub "arn:aws:s3:::${S3Bucket}/*"
 
   AccessKey:
     Type: AWS::IAM::AccessKey
